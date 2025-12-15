@@ -62,7 +62,7 @@ fraud_detection/
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/fraud-detection.git
+   git clone https://github.com/PfandAhter/fraud-detection.git
    cd fraud-detection
    ```
 
@@ -232,7 +232,7 @@ This project is licensed under the MIT License.
 
 ## 👤 Author
 
-**Your Name**
+**Ataberk BAKIR**
 - GitHub: [@PfandAhter](https://github.com/PfandAhter)
 
 ---
