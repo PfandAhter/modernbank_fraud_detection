@@ -233,7 +233,7 @@ This project is licensed under the MIT License.
 ## 👤 Author
 
 **Your Name**
-- GitHub: [@YOUR_USERNAME](https://github.com/YOUR_USERNAME)
+- GitHub: [@PfandAhter](https://github.com/PfandAhter)
 
 ---
 
