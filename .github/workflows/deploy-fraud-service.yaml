@@ -64,11 +64,11 @@ jobs:
 
       - name: Update image tag in deployment
         run: |
-          sed -i 's|fraud-detection-service:.*|fraud-detection-service:${{ github.sha }}|g' k8s/deployment.yaml
+          sed -i 's|fraud-detection-service:.*|fraud-detection-service:${{ github.sha }}|g' k8s/fraud-detection-service.yaml
 
       - name: Deploy to Kubernetes
         run: |
-          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/fraud-detection-service.yaml
 
       - name: Verify deployment
         run: |
