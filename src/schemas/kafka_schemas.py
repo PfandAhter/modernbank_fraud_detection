@@ -178,6 +178,11 @@ class FraudEvaluationResult(BaseModel):
         alias="featureImportance",
         description="Top contributing features to the decision"
     )
+    model_version: str = Field(
+        default="1.0.0",
+        alias="modelVersion",
+        description="Version of the fraud detection model used"
+    )
     
     model_config = ConfigDict(
         populate_by_name=True,
@@ -189,7 +194,8 @@ class FraudEvaluationResult(BaseModel):
         cls,
         transaction_id: str,
         risk_score: float,
-        feature_importance: Optional[Dict[str, float]] = None
+        feature_importance: Optional[Dict[str, float]] = None,
+        model_version: str = "1.0.0"
     ) -> "FraudEvaluationResult":
         """Create result from risk score applying decision logic.
         
@@ -214,7 +220,8 @@ class FraudEvaluationResult(BaseModel):
             risk_level=risk_level,
             recommended_action=action,
             evaluated_at=datetime.utcnow().isoformat() + "Z",
-            feature_importance=feature_importance
+            feature_importance=feature_importance,
+            model_version=model_version
         )
 
 

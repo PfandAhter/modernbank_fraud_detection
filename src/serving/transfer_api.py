@@ -51,6 +51,7 @@ class EvaluationResponse(BaseModel):
     recommendedAction: str
     evaluatedAt: str
     featureImportance: Dict[str, float] | None = None
+    modelVersion: str = "1.0.0"
     
     model_config = ConfigDict(extra="ignore")
 

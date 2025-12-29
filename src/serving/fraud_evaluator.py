@@ -31,12 +31,88 @@ from schemas.kafka_schemas import (
 )
 from models.train_transfer_model import TopKCategoryEncoder
 
+# Human-readable feature name mapping for API responses
+# Maps internal/sklearn feature names to user-friendly camelCase names
+FEATURE_NAME_MAPPING: dict[str, str] = {
+    # Ratio features
+    "amount_to_avg_ratio": "amountToAvgRatio",
+    "num__amount_to_avg_ratio": "amountToAvgRatio",
+    "balance_drain_ratio": "balanceDrainRatio",
+    "num__balance_drain_ratio": "balanceDrainRatio",
+    "velocity_24h": "velocity24h",
+    "num__velocity_24h": "velocity24h",
+    "velocity_7d": "velocity7d",
+    "num__velocity_7d": "velocity7d",
+    "velocity_burst": "velocityBurst",
+    "num__velocity_burst": "velocityBurst",
+    # Card features
+    "card_age_months": "cardAgeMonths",
+    "num__card_age_months": "cardAgeMonths",
+    "card_type": "cardType",
+    # Risk indicators
+    "is_new_receiver": "isNewReceiver",
+    "num__is_new_receiver": "isNewReceiver",
+    "is_new_card": "isNewCard",
+    "num__is_new_card": "isNewCard",
+    "is_round_amount": "isRoundAmount",
+    "num__is_round_amount": "isRoundAmount",
+    "is_large_amount": "isLargeAmount",
+    "num__is_large_amount": "isLargeAmount",
+    "is_off_hours": "isOffHours",
+    "num__is_off_hours": "isOffHours",
+    "previous_fraud_flag": "previousFraudFlag",
+    "num__previous_fraud_flag": "previousFraudFlag",
+    "is_weekend": "isWeekend",
+    "num__is_weekend": "isWeekend",
+    # Time features
+    "txn_hour": "transactionHour",
+    "num__txn_hour": "transactionHour",
+    "txn_day_of_week": "transactionDayOfWeek",
+    "num__txn_day_of_week": "transactionDayOfWeek",
+    # Raw amount (if used)
+    "transaction_amount": "transactionAmount",
+    "num__transaction_amount": "transactionAmount",
+    # Index-based fallback mapping (based on TRANSFER_FEATURE_COLUMNS order)
+    # Numeric columns processed first by ColumnTransformer:
+    # f0: amount_to_avg_ratio, f1: balance_drain_ratio, f2: velocity_24h,
+    # f3: velocity_7d, f4: velocity_burst, f5: card_age_months,
+    # f6: is_new_receiver, f7: is_new_card, f8: is_round_amount,
+    # f9: is_large_amount, f10: is_off_hours, f11: previous_fraud_flag,
+    # f12: is_weekend, f13: txn_hour, f14: txn_day_of_week
+    # Then one-hot encoded card_type columns at the end
+    "f0": "amountToAvgRatio",
+    "f1": "balanceDrainRatio",
+    "f2": "velocity24h",
+    "f3": "velocity7d",
+    "f4": "velocityBurst",
+    "f5": "cardAgeMonths",
+    "f6": "isNewReceiver",
+    "f7": "isNewCard",
+    "f8": "isRoundAmount",
+    "f9": "isLargeAmount",
+    "f10": "isOffHours",
+    "f11": "previousFraudFlag",
+    "f12": "isWeekend",
+    "f13": "transactionHour",
+    "f14": "transactionDayOfWeek",
+    # One-hot encoded card_type (indices 15+)
+    "f15": "cardType",
+    "f16": "cardType",
+    "f17": "cardType",
+    "f18": "cardType",
+    "f19": "cardType",
+    "f20": "cardType",
+}
+
 # Register custom class for pickle deserialization
 import sys
 sys.modules.setdefault("__main__", sys.modules[__name__])
 setattr(sys.modules["__main__"], "TopKCategoryEncoder", TopKCategoryEncoder)
 
 MODEL_PATH = PROJECT_ROOT / "models" / "transfer_fraud_model.pkl"
+
+# Model version - update this when retraining the model
+MODEL_VERSION = "1.0.0"
 
 
 class FraudEvaluator:
@@ -109,7 +185,8 @@ class FraudEvaluator:
         return FraudEvaluationResult.from_evaluation(
             transaction_id=request.transaction_id,
             risk_score=risk_score,
-            feature_importance=importance
+            feature_importance=importance,
+            model_version=MODEL_VERSION
         )
     
     def _build_features(self, request: FraudEvaluationRequest) -> pd.DataFrame:
@@ -227,6 +304,18 @@ class FraudEvaluator:
         Dict[str, float]
             Top contributing features and their importance scores.
         """
+        def _map_feature_name(name: str) -> str:
+            """Map internal feature name to human-readable name."""
+            # First check exact match
+            if name in FEATURE_NAME_MAPPING:
+                return FEATURE_NAME_MAPPING[name]
+            # Check for partial match (for encoded categorical features)
+            for key, readable in FEATURE_NAME_MAPPING.items():
+                if key in name:
+                    return readable
+            # Return original if no mapping found
+            return name
+        
         try:
             preprocessor = self.pipeline.named_steps.get("preprocess")
             model = self.pipeline.named_steps.get("model")
@@ -239,7 +328,7 @@ class FraudEvaluator:
             
             # Get feature names
             try:
-                feature_names = preprocessor.get_feature_names_out()
+                feature_names = list(preprocessor.get_feature_names_out())
             except AttributeError:
                 feature_names = [f"f{i}" for i in range(transformed.shape[1])]
             
@@ -251,7 +340,7 @@ class FraudEvaluator:
                 shap_values = contribs[0][:-1]  # Exclude bias term
                 top_indices = np.argsort(np.abs(shap_values))[::-1][:top_k]
                 return {
-                    feature_names[idx]: round(float(shap_values[idx]), 4) 
+                    _map_feature_name(feature_names[idx]): round(float(shap_values[idx]), 2) 
                     for idx in top_indices
                 }
             except Exception:
@@ -259,7 +348,7 @@ class FraudEvaluator:
                 importances = model.feature_importances_
                 top_indices = np.argsort(importances)[::-1][:top_k]
                 return {
-                    feature_names[i]: round(float(importances[i]), 4)
+                    _map_feature_name(feature_names[i]): round(float(importances[i]), 2)
                     for i in top_indices
                     if importances[i] > 0
                 }
