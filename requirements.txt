@@ -17,3 +17,7 @@ confluent-kafka>=2.3.0
 
 # Additional
 python-dotenv>=1.0.0
+
+# Monitoring & Metrics (Spring Actuator + Prometheus equivalent)
+prometheus-client>=0.19.0
+prometheus-fastapi-instrumentator>=6.1.0

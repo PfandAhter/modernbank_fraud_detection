@@ -28,9 +28,9 @@ COPY .env ./
 # Expose port
 EXPOSE 8001
 
-# Health check
+# Health check (uses the new liveness endpoint)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8001/docs')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8001/health/liveness')" || exit 1
 
 # Run the application
 CMD ["python", "src/serving/app.py"]
